@@ -1,0 +1,15 @@
+# Human-readable experiment configuration.
+# The runnable code uses equivalent defaults in scripts/run_research.py.
+seed: 42
+n_assets: 120
+n_days: 760
+n_sectors: 8
+forward_horizon_days: 10
+n_regimes: 4
+pca_components: 3
+signals:
+  - reversal_5d
+  - momentum_20d
+  - momentum_60d
+  - momentum_20d_vol_adj
+  - liquidity_adjusted_momentum
