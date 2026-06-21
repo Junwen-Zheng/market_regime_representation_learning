@@ -1,0 +1,7 @@
+metric,value
+n_assets,120
+n_days,760
+n_regimes,4
+pca_components,3
+best_aggregate_signal,momentum_20d_z
+best_aggregate_mean_rank_ic,0.10835797775811724
