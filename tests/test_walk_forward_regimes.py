@@ -96,8 +96,7 @@ def test_walk_forward_refits_across_multiple_assignment_windows():
     assert len(assignments) == len(market_state) - 55
 
     window_sizes = fit_windows["n_assignment_observations"].tolist()
-    assert window_sizes[:-1] == [25, 25, 25, 25]
-    assert window_sizes[-1] == 0 or window_sizes[-1] <= 25
+    assert window_sizes == [25, 25, 25, 25]
 
 
 def test_future_rows_do_not_change_past_walk_forward_assignments():
