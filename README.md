@@ -1,114 +1,70 @@
-# Market Regime Representation Learning for Conditional Equity Alpha Robustness
+# Market Regime Representation Learning
 
-This repository is a reproducible quant research case study focused on **learning market-regime representations** and testing whether equity alpha signals remain robust across different market states.
+This repository studies whether simple cross-sectional equity signals behave differently across learned market regimes.
 
-The project is designed as a second, standalone financial research project for a systematic investing / quant research portfolio. It is not a production trading strategy and does not claim tradable alpha. The goal is to show the full research workflow: hypothesis design, data construction, regime representation, conditional signal evaluation, failure analysis, and reproducible outputs.
+It is a research case study, not a production trading strategy, and it does not claim tradable alpha.
 
-## Research Question
+## Current research design
 
-Do simple cross-sectional equity alpha signals behave differently across learned market regimes?
+The primary workflow uses a real multi-asset OHLCV CSV.
 
-More specifically:
+Synthetic data is available only through the explicitly selected `synthetic_smoke_test` mode. Missing or invalid real data never triggers a synthetic fallback.
 
-1. Can market-level features such as volatility, liquidity stress, cross-sectional dispersion, trend, breadth, and sector dispersion be compressed into a lower-dimensional regime representation?
-2. Do momentum/reversal/volatility-adjusted alpha signals show different rank-IC behavior across those regimes?
-3. Are any apparent results robust enough to justify further research, or are they mainly artifacts of regime sampling, public-data limitations, and transaction-cost assumptions?
+Regimes are learned using market-state features, standardisation, PCA, KMeans, and walk-forward fitting. Conditional signal rank IC uses walk-forward regime labels by default.
 
-## Why This Project Exists
+## Setup
 
-Most toy quant projects stop at a simple backtest. This project focuses on a more research-oriented question: **conditional robustness**. A signal that appears useful on average may fail under certain volatility, liquidity, or trend regimes.
+Run:
 
-The project therefore evaluates alpha signals by regime rather than only reporting aggregate metrics.
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
 
-## Project Structure
+## Real-data workflow
 
-```text
-config/                     Experiment configuration
-src/                        Research code
-  synthetic_data.py          Reproducible panel-data generator
-  market_state.py            Market-state feature construction
-  regime_representation.py   Standardisation, PCA, KMeans regime learning
-  alpha_signals.py           Cross-sectional alpha signal construction
-  evaluation.py              Rank IC, regime slicing, transition diagnostics
-  workflow.py                End-to-end pipeline
-scripts/
-  run_research.py            Main runnable script
-reports/
-  research_report.md         Research write-up
-  failure_analysis.md        Honest limitations and failure modes
-docs/research_log/           Timestamped research notes
-outputs/                     Generated CSV outputs
-tests/                       Unit tests
-resume_snippet.md            Resume-ready project bullet options
-```
+Place a valid CSV at:
 
-## Methodology
+    data/raw/prices.csv
 
-The project builds a daily stock panel with synthetic but finance-shaped data. The synthetic dataset is used so the repository is reproducible without paid market data or private vendor APIs. The pipeline is structured so real OHLCV data can be swapped in later.
+Required fields:
 
-The workflow is:
+    date,asset,sector,open,high,low,close,volume
 
-1. Generate or load a multi-asset equity panel.
-2. Construct market-state features:
-   - market return
-   - realised volatility
-   - cross-sectional return dispersion
-   - return breadth
-   - dollar-volume liquidity stress
-   - sector return dispersion
-   - trend strength
-3. Learn market-regime representations:
-   - standardise market-state features
-   - reduce dimension with PCA
-   - cluster market states with KMeans
-4. Construct alpha signals:
-   - 5-day reversal
-   - 20-day momentum
-   - 60-day momentum
-   - volatility-adjusted momentum
-   - liquidity-adjusted momentum
-5. Evaluate forward relative returns using daily cross-sectional rank IC.
-6. Slice alpha performance by learned regime.
-7. Generate transition matrix and regime diagnostics.
-8. Produce reproducible CSV outputs and research notes.
+Run:
 
-## Quickstart
+    python scripts/run_research.py --data-mode real --data-path data/raw/prices.csv
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python scripts/run_research.py
-pytest -q
-```
+There is no synthetic fallback if the file is missing or invalid.
 
-Expected generated outputs:
+## Synthetic smoke test
 
-```text
-outputs/market_state_features.csv
-outputs/regime_assignments.csv
-outputs/regime_transition_matrix.csv
-outputs/conditional_rank_ic_by_regime.csv
-outputs/aggregate_signal_rank_ic.csv
-outputs/research_summary.csv
-```
+Run:
 
-## What This Demonstrates
+    python scripts/run_research.py --data-mode synthetic_smoke_test --output-dir /tmp/market_regime_smoke
 
-- Market-state feature engineering
-- Representation learning for regime discovery
-- PCA + clustering workflow for interpretable regime modelling
-- Cross-sectional alpha-signal construction
-- Rank-IC based signal evaluation
-- Conditional alpha robustness analysis
-- Transition-matrix diagnostics
-- Reproducible synthetic-data research design
-- Honest limitation reporting
+Synthetic results demonstrate pipeline execution only.
 
-## Current Status
+## Tests
 
-This is a research case study, not a trading system. The current version uses a reproducible synthetic dataset to demonstrate methodology and evaluation discipline. A production-grade version would require survivorship-bias-free equity data, point-in-time fundamentals/events, corporate-action handling, borrow/cost assumptions, and stricter execution modelling.
+Run:
 
-## Main Limitation
+    pytest -q
 
-The project is useful as evidence of research process, not as evidence of tradable alpha. Synthetic data can test whether the pipeline is logically coherent, but not whether a signal works in live markets.
+## Main modules
+
+- `src/data_loader.py`: explicit real and synthetic data selection
+- `src/market_state.py`: market-state feature construction
+- `src/regime_representation.py`: regime fitting and assignment
+- `src/walk_forward_regimes.py`: walk-forward regime labels
+- `src/alpha_signals.py`: cross-sectional signals
+- `src/evaluation.py`: aggregate and conditional rank IC
+- `src/workflow.py`: end-to-end workflow
+- `scripts/run_research.py`: command-line runner
+
+## Important limitations
+
+- The planned public-data universe contains current survivors.
+- Delisted securities and delisting returns are not included.
+- Public OHLCV data is not point-in-time institutional data.
+- Transaction costs, borrow constraints, and execution effects are not modelled.
+- Statistical regime labels are not stable economic truths.

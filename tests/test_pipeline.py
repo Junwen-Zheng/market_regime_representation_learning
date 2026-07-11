@@ -75,6 +75,7 @@ def test_alpha_and_conditional_evaluation_work():
 def test_full_workflow_defaults_to_walk_forward_regimes(tmp_path):
     outputs = run_research_pipeline(
         output_dir=tmp_path,
+        data_mode="synthetic_smoke_test",
         seed=4,
         n_assets=30,
         n_days=220,
@@ -121,6 +122,7 @@ def test_full_workflow_defaults_to_walk_forward_regimes(tmp_path):
 def test_full_workflow_still_supports_full_sample_diagnostic_mode(tmp_path):
     outputs = run_research_pipeline(
         output_dir=tmp_path,
+        data_mode="synthetic_smoke_test",
         seed=5,
         n_assets=30,
         n_days=220,
@@ -145,9 +147,70 @@ def test_workflow_rejects_unknown_regime_mode(tmp_path):
     with pytest.raises(ValueError, match="regime_mode"):
         run_research_pipeline(
             output_dir=tmp_path,
+            data_mode="synthetic_smoke_test",
             seed=6,
             n_assets=30,
             n_days=220,
             n_sectors=5,
             regime_mode="invalid_mode",
         )
+
+
+def test_real_data_mode_runs_from_csv(tmp_path):
+    source = generate_synthetic_equity_panel(
+        n_assets=30,
+        n_days=220,
+        n_sectors=5,
+        seed=7,
+    )
+
+    data_path = tmp_path / "real_prices.csv"
+
+    source[
+        [
+            "date",
+            "asset",
+            "sector",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+        ]
+    ].to_csv(data_path, index=False)
+
+    outputs = run_research_pipeline(
+        output_dir=tmp_path / "outputs",
+        data_mode="real",
+        data_path=data_path,
+        seed=7,
+        n_regimes=3,
+        pca_components=2,
+        min_train_days=80,
+        refit_frequency=20,
+    )
+
+    summary = outputs["research_summary"]
+
+    data_mode = summary.loc[
+        summary["metric"] == "data_mode",
+        "value",
+    ].iloc[0]
+
+    assert data_mode == "real"
+    assert not outputs["conditional_rank_ic_by_regime"].empty
+
+    assignments = outputs["regime_assignments"]
+
+    assert (
+        pd.to_datetime(assignments["date"])
+        > pd.to_datetime(assignments["model_fit_end_date"])
+    ).all()
+
+
+def test_default_real_mode_requires_data_path(tmp_path):
+    with pytest.raises(
+        ValueError,
+        match="data_path is required",
+    ):
+        run_research_pipeline(output_dir=tmp_path)
