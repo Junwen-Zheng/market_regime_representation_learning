@@ -68,3 +68,19 @@ Run:
 - Public OHLCV data is not point-in-time institutional data.
 - Transaction costs, borrow constraints, and execution effects are not modelled.
 - Statistical regime labels are not stable economic truths.
+
+## Robustness findings
+
+Because the target is a 10-day forward return, daily rank-IC observations overlap.
+
+The real-data workflow therefore includes Newey-West HAC uncertainty estimates, non-overlapping 10-day offsets, and calendar-year stability checks.
+
+The strongest signal, 60-day momentum, had:
+
+- mean rank IC of approximately 0.0123
+- HAC t-statistic of approximately 0.73
+- a 95 percent HAC confidence interval that included zero
+- positive mean IC in 9 of 10 non-overlapping offsets
+- positive mean IC in 6 of 9 calendar years
+
+These results are directionally interesting but statistically weak. The repository does not claim reliable or tradable alpha.

@@ -16,6 +16,11 @@ from src.regime_representation import (
     fit_predict_full_sample_regimes,
     regime_transition_matrix,
 )
+from src.robustness import (
+    aggregate_rank_ic_hac,
+    non_overlapping_rank_ic_offsets,
+    rank_ic_by_year,
+)
 from src.walk_forward_regimes import build_walk_forward_regime_assignments
 
 
@@ -142,6 +147,24 @@ def run_research_pipeline(
         SIGNAL_COLS,
     )
 
+    aggregate_ic_hac = aggregate_rank_ic_hac(
+        alpha_df,
+        SIGNAL_COLS,
+        max_lag=9,
+    )
+
+    yearly_ic = rank_ic_by_year(
+        alpha_df,
+        SIGNAL_COLS,
+        max_lag=9,
+    )
+
+    non_overlapping_ic = non_overlapping_rank_ic_offsets(
+        alpha_df,
+        SIGNAL_COLS,
+        horizon=10,
+    )
+
     conditional_ic = conditional_rank_ic_by_regime(
         alpha_df,
         regime_assignments,
@@ -163,6 +186,9 @@ def run_research_pipeline(
         **regime_outputs,
         "regime_transition_matrix": transition,
         "aggregate_signal_rank_ic": aggregate_ic,
+        "aggregate_signal_rank_ic_hac": aggregate_ic_hac,
+        "signal_rank_ic_by_year": yearly_ic,
+        "non_overlapping_rank_ic_offsets": non_overlapping_ic,
         "conditional_rank_ic_by_regime": conditional_ic,
         "regime_summary": regime_summary,
     }
