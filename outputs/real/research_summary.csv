@@ -1,0 +1,14 @@
+metric,value
+data_mode,real
+data_path,data/raw/prices.csv
+n_assets,24
+n_days,2134
+n_sectors,8
+n_regimes,4
+pca_components,3
+regime_mode,walk_forward
+min_train_days,252
+refit_frequency,20
+n_regime_assigned_days,1823
+best_aggregate_signal,momentum_60d_z
+best_aggregate_mean_rank_ic,0.012318419278732725
