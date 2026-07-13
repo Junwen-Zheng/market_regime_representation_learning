@@ -4,15 +4,25 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from src.regime_representation import assign_regimes, fit_regime_estimator
+from src.regime_alignment import (
+    align_regime_centroids,
+    canonical_regime_mapping,
+    regime_centroids_in_feature_space,
+)
+from src.regime_representation import (
+    assign_regimes,
+    fit_regime_estimator,
+)
 
 
 @dataclass
 class WalkForwardRegimeResult:
-    """Walk-forward regime assignment outputs."""
+    """Walk-forward regime assignment and alignment outputs."""
 
     assignments: pd.DataFrame
     fit_windows: pd.DataFrame
+    regime_mappings: pd.DataFrame
+    aligned_centroids: pd.DataFrame
 
 
 def _validate_walk_forward_inputs(
@@ -23,29 +33,43 @@ def _validate_walk_forward_inputs(
     expanding_window: bool,
 ) -> None:
     if "date" not in market_state.columns:
-        raise ValueError("market_state must include date column")
+        raise ValueError(
+            "market_state must include date column"
+        )
 
     if market_state["date"].duplicated().any():
-        raise ValueError("market_state must contain one row per date")
+        raise ValueError(
+            "market_state must contain one row per date"
+        )
 
     if min_train_days <= 0:
-        raise ValueError("min_train_days must be positive")
+        raise ValueError(
+            "min_train_days must be positive"
+        )
 
     if refit_frequency <= 0:
-        raise ValueError("refit_frequency must be positive")
+        raise ValueError(
+            "refit_frequency must be positive"
+        )
 
     if len(market_state) <= min_train_days:
         raise ValueError(
-            "market_state must contain more rows than min_train_days "
-            "so there are dates to assign"
+            "market_state must contain more rows than "
+            "min_train_days so there are dates to assign"
         )
 
     if not expanding_window:
         if train_window_days is None:
-            raise ValueError("train_window_days is required when expanding_window=False")
+            raise ValueError(
+                "train_window_days is required when "
+                "expanding_window=False"
+            )
 
         if train_window_days < min_train_days:
-            raise ValueError("train_window_days must be at least min_train_days")
+            raise ValueError(
+                "train_window_days must be at least "
+                "min_train_days"
+            )
 
 
 def build_walk_forward_regime_assignments(
@@ -58,18 +82,25 @@ def build_walk_forward_regime_assignments(
     train_window_days: int | None = None,
     random_state: int = 42,
 ) -> WalkForwardRegimeResult:
-    """Fit regimes on historical windows and assign labels to later dates.
+    """Fit historical regime models and align labels across refits.
 
-    For each assignment window, the scaler, PCA, and KMeans model are fit only
-    on rows strictly earlier than the dates being labelled.
+    Each model is fit only on rows earlier than its assignment dates.
 
-    This function is the non-leaky regime-labelling foundation for later
-    conditional IC evaluation.
+    Raw KMeans labels are stored in `raw_regime`. The `regime` column
+    contains aligned labels:
+
+    - the first model is ordered deterministically by stress score
+    - later models are matched one-to-one to the preceding aligned
+      centroids using minimum-cost centroid assignment
     """
 
     ordered = market_state.copy()
-    ordered["date"] = pd.to_datetime(ordered["date"])
-    ordered = ordered.sort_values("date").reset_index(drop=True)
+    ordered["date"] = pd.to_datetime(
+        ordered["date"]
+    )
+    ordered = ordered.sort_values(
+        "date"
+    ).reset_index(drop=True)
 
     _validate_walk_forward_inputs(
         market_state=ordered,
@@ -81,21 +112,37 @@ def build_walk_forward_regime_assignments(
 
     assignment_frames: list[pd.DataFrame] = []
     fit_window_records: list[dict[str, object]] = []
+    mapping_frames: list[pd.DataFrame] = []
+    centroid_frames: list[pd.DataFrame] = []
 
     assignment_start_idx = min_train_days
     regime_model_id = 0
 
+    previous_model = None
+    previous_aligned_centroids = None
+
     while assignment_start_idx < len(ordered):
-        assignment_end_idx = min(assignment_start_idx + refit_frequency, len(ordered))
+        assignment_end_idx = min(
+            assignment_start_idx + refit_frequency,
+            len(ordered),
+        )
 
         if expanding_window:
             fit_start_idx = 0
         else:
             assert train_window_days is not None
-            fit_start_idx = max(0, assignment_start_idx - train_window_days)
+            fit_start_idx = max(
+                0,
+                assignment_start_idx - train_window_days,
+            )
 
-        train = ordered.iloc[fit_start_idx:assignment_start_idx].copy()
-        to_assign = ordered.iloc[assignment_start_idx:assignment_end_idx].copy()
+        train = ordered.iloc[
+            fit_start_idx:assignment_start_idx
+        ].copy()
+
+        to_assign = ordered.iloc[
+            assignment_start_idx:assignment_end_idx
+        ].copy()
 
         model = fit_regime_estimator(
             market_state=train,
@@ -104,36 +151,159 @@ def build_walk_forward_regime_assignments(
             random_state=random_state,
         )
 
-        assignments = assign_regimes(model, to_assign)
-        assignments["regime_model_id"] = regime_model_id
-        assignments["assignment_window_start_date"] = to_assign["date"].min()
-        assignments["assignment_window_end_date"] = to_assign["date"].max()
+        if previous_model is None:
+            mapping = canonical_regime_mapping(
+                model
+            )
+        else:
+            assert previous_aligned_centroids is not None
+
+            mapping = align_regime_centroids(
+                previous_model=previous_model,
+                previous_aligned_centroids=(
+                    previous_aligned_centroids
+                ),
+                current_model=model,
+            )
+
+        mapping = mapping.copy()
+        mapping["regime_model_id"] = regime_model_id
+        mapping["fit_start_date"] = train["date"].min()
+        mapping["fit_end_date"] = train["date"].max()
+        mapping["assignment_start_date"] = (
+            to_assign["date"].min()
+        )
+        mapping["assignment_end_date"] = (
+            to_assign["date"].max()
+        )
+
+        raw_to_aligned = dict(
+            zip(
+                mapping["raw_regime"].astype(int),
+                mapping["regime"].astype(int),
+            )
+        )
+
+        assignments = assign_regimes(
+            model,
+            to_assign,
+        ).rename(
+            columns={"regime": "raw_regime"}
+        )
+
+        assignments["raw_regime"] = (
+            assignments["raw_regime"].astype(int)
+        )
+
+        assignments["regime"] = (
+            assignments["raw_regime"]
+            .map(raw_to_aligned)
+            .astype(int)
+        )
+
+        assignments["regime_model_id"] = (
+            regime_model_id
+        )
+        assignments["assignment_window_start_date"] = (
+            to_assign["date"].min()
+        )
+        assignments["assignment_window_end_date"] = (
+            to_assign["date"].max()
+        )
+
+        centroids = (
+            regime_centroids_in_feature_space(
+                model
+            )
+            .merge(
+                mapping[
+                    [
+                        "raw_regime",
+                        "regime",
+                        "mapping_method",
+                        "match_distance",
+                    ]
+                ],
+                on="raw_regime",
+                how="inner",
+                validate="one_to_one",
+            )
+        )
+
+        centroids["regime_model_id"] = regime_model_id
+        centroids["fit_start_date"] = (
+            train["date"].min()
+        )
+        centroids["fit_end_date"] = (
+            train["date"].max()
+        )
+
+        previous_aligned_centroids = centroids[
+            [
+                "regime",
+                *model.feature_columns,
+            ]
+        ].copy()
+
+        previous_model = model
 
         assignment_frames.append(assignments)
+        mapping_frames.append(mapping)
+        centroid_frames.append(centroids)
 
         fit_window_records.append(
             {
                 "regime_model_id": regime_model_id,
                 "fit_start_date": train["date"].min(),
                 "fit_end_date": train["date"].max(),
-                "assignment_start_date": to_assign["date"].min(),
-                "assignment_end_date": to_assign["date"].max(),
+                "assignment_start_date": (
+                    to_assign["date"].min()
+                ),
+                "assignment_end_date": (
+                    to_assign["date"].max()
+                ),
                 "n_train_observations": len(train),
-                "n_assignment_observations": len(to_assign),
+                "n_assignment_observations": len(
+                    to_assign
+                ),
                 "n_regimes": n_regimes,
                 "pca_components": pca_components,
                 "random_state": random_state,
                 "expanding_window": expanding_window,
+                "mean_match_distance": float(
+                    mapping["match_distance"].mean()
+                ),
+                "max_match_distance": float(
+                    mapping["match_distance"].max()
+                ),
             }
         )
 
         regime_model_id += 1
         assignment_start_idx = assignment_end_idx
 
-    all_assignments = pd.concat(assignment_frames, ignore_index=True)
-    fit_windows = pd.DataFrame(fit_window_records)
+    all_assignments = pd.concat(
+        assignment_frames,
+        ignore_index=True,
+    )
+
+    fit_windows = pd.DataFrame(
+        fit_window_records
+    )
+
+    regime_mappings = pd.concat(
+        mapping_frames,
+        ignore_index=True,
+    )
+
+    aligned_centroids = pd.concat(
+        centroid_frames,
+        ignore_index=True,
+    )
 
     return WalkForwardRegimeResult(
         assignments=all_assignments,
         fit_windows=fit_windows,
+        regime_mappings=regime_mappings,
+        aligned_centroids=aligned_centroids,
     )

@@ -84,3 +84,17 @@ The strongest signal, 60-day momentum, had:
 - positive mean IC in 6 of 9 calendar years
 
 These results are directionally interesting but statistically weak. The repository does not claim reliable or tradable alpha.
+
+## Walk-forward regime-label alignment
+
+KMeans cluster numbers are arbitrary across separate model fits. The walk-forward workflow therefore preserves each model's `raw_regime` and creates an aligned `regime` through sequential minimum-cost centroid matching.
+
+In the real-data experiment:
+
+- 86 of 92 fitted models required label remapping
+- 1,315 of 1,823 assigned dates changed label number
+- regimes 0 and 3 remained the lowest- and highest-stress states across all refits
+- regimes 1 and 2 exchanged relative stress rank in 16 models
+- the largest centroid discontinuity occurred around the 2020 COVID shock
+
+The aligned labels support more defensible conditional analysis, but they remain statistical states rather than permanent economic categories. The rare highest-stress regime contained only 44 evaluation days, so its conditional signal results are treated as descriptive.

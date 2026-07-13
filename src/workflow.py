@@ -116,6 +116,12 @@ def run_research_pipeline(
         regime_outputs["regime_fit_windows"] = (
             walk_forward_result.fit_windows
         )
+        regime_outputs["regime_label_mappings"] = (
+            walk_forward_result.regime_mappings
+        )
+        regime_outputs["regime_aligned_centroids"] = (
+            walk_forward_result.aligned_centroids
+        )
 
     elif regime_mode == "full_sample_diagnostic":
         regime_result = fit_predict_full_sample_regimes(
