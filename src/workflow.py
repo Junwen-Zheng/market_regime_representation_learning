@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.alpha_signals import build_alpha_dataset
+from src.conditional_robustness import conditional_rank_ic_hac
 from src.data_loader import load_equity_panel
 from src.evaluation import (
     aggregate_rank_ic,
@@ -177,6 +178,14 @@ def run_research_pipeline(
         SIGNAL_COLS,
     )
 
+    conditional_ic_hac = conditional_rank_ic_hac(
+        alpha_df=alpha_df,
+        regime_assignments=regime_assignments,
+        signal_cols=SIGNAL_COLS,
+        max_lag=9,
+        minimum_days=60,
+    )
+
     transition = regime_transition_matrix(
         regime_assignments
     )
@@ -196,6 +205,7 @@ def run_research_pipeline(
         "signal_rank_ic_by_year": yearly_ic,
         "non_overlapping_rank_ic_offsets": non_overlapping_ic,
         "conditional_rank_ic_by_regime": conditional_ic,
+        "conditional_rank_ic_by_regime_hac": conditional_ic_hac,
         "regime_summary": regime_summary,
     }
 

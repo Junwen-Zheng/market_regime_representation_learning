@@ -98,3 +98,11 @@ In the real-data experiment:
 - the largest centroid discontinuity occurred around the 2020 COVID shock
 
 The aligned labels support more defensible conditional analysis, but they remain statistical states rather than permanent economic categories. The rare highest-stress regime contained only 44 evaluation days, so its conditional signal results are treated as descriptive.
+
+## Regime-conditional inference safeguards
+
+The workflow applies position-aware Newey-West HAC inference to regime-conditioned rank IC. Lagged covariance is based on original market-day spacing rather than adjacency after filtering to a regime.
+
+Formal inference requires at least 60 valid IC days. In the real-data experiment, regimes 0 through 2 were eligible, while the highest-stress regime had only 44 days and was marked `insufficient_sample`.
+
+None of the 15 eligible signal-regime confidence intervals excluded zero. Conditional results are therefore reported as weak or descriptive rather than evidence of reliable regime-dependent alpha.
