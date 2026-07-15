@@ -6,6 +6,7 @@ import pandas as pd
 
 from src.alpha_signals import build_alpha_dataset
 from src.conditional_robustness import conditional_rank_ic_hac
+from src.multiple_testing import apply_multiple_testing_corrections
 from src.data_loader import load_equity_panel
 from src.evaluation import (
     aggregate_rank_ic,
@@ -160,6 +161,15 @@ def run_research_pipeline(
         max_lag=9,
     )
 
+    aggregate_ic_hac_multiple_testing = (
+        apply_multiple_testing_corrections(
+            aggregate_ic_hac,
+            statistic_col="hac_t_stat",
+            family_name="aggregate_signals",
+            alpha=0.05,
+        )
+    )
+
     yearly_ic = rank_ic_by_year(
         alpha_df,
         SIGNAL_COLS,
@@ -186,6 +196,16 @@ def run_research_pipeline(
         minimum_days=60,
     )
 
+    conditional_ic_hac_multiple_testing = (
+        apply_multiple_testing_corrections(
+            conditional_ic_hac,
+            statistic_col="hac_t_stat",
+            eligibility_col="inference_eligible",
+            family_name="conditional_signal_regime",
+            alpha=0.05,
+        )
+    )
+
     transition = regime_transition_matrix(
         regime_assignments
     )
@@ -202,10 +222,12 @@ def run_research_pipeline(
         "regime_transition_matrix": transition,
         "aggregate_signal_rank_ic": aggregate_ic,
         "aggregate_signal_rank_ic_hac": aggregate_ic_hac,
+        "aggregate_signal_rank_ic_hac_multiple_testing": aggregate_ic_hac_multiple_testing,
         "signal_rank_ic_by_year": yearly_ic,
         "non_overlapping_rank_ic_offsets": non_overlapping_ic,
         "conditional_rank_ic_by_regime": conditional_ic,
         "conditional_rank_ic_by_regime_hac": conditional_ic_hac,
+        "conditional_rank_ic_by_regime_hac_multiple_testing": conditional_ic_hac_multiple_testing,
         "regime_summary": regime_summary,
     }
 
