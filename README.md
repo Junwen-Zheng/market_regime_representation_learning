@@ -106,3 +106,16 @@ The workflow applies position-aware Newey-West HAC inference to regime-condition
 Formal inference requires at least 60 valid IC days. In the real-data experiment, regimes 0 through 2 were eligible, while the highest-stress regime had only 44 days and was marked `insufficient_sample`.
 
 None of the 15 eligible signal-regime confidence intervals excluded zero. Conditional results are therefore reported as weak or descriptive rather than evidence of reliable regime-dependent alpha.
+
+## Multiple-testing control
+
+The workflow converts HAC t-statistics into two-sided large-sample p-values and applies both Benjamini-Hochberg false-discovery-rate adjustment and Holm family-wise-error adjustment.
+
+The real-data analysis tested:
+
+- 5 aggregate signal hypotheses
+- 15 eligible signal-regime hypotheses
+
+Five sparse regime-3 rows were excluded from formal testing under the 60-day minimum-sample safeguard.
+
+Neither family produced any Benjamini-Hochberg or Holm rejection at the 0.05 level. The results therefore provide no statistically supported aggregate or regime-dependent alpha evidence.
