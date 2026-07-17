@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Market Regime Representation Learning — Research Report</title>
+<style>
+body {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 32px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    line-height: 1.55;
+    color: #202124;
+}
+h1, h2, h3 {
+    line-height: 1.2;
+}
+h1 {
+    margin-bottom: 4px;
+}
+.subtitle {
+    color: #5f6368;
+    margin-top: 0;
+}
+.summary-box {
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    padding: 18px;
+    margin: 20px 0;
+    background: #f8f9fa;
+}
+.conclusion {
+    border-left: 5px solid #5f6368;
+    padding: 14px 18px;
+    background: #f8f9fa;
+}
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 26px;
+    font-size: 0.92rem;
+}
+.data-table th,
+.data-table td {
+    border: 1px solid #dadce0;
+    padding: 7px 9px;
+    text-align: right;
+}
+.data-table th:first-child,
+.data-table td:first-child {
+    text-align: left;
+}
+.data-table th {
+    background: #f1f3f4;
+}
+code {
+    background: #f1f3f4;
+    padding: 2px 5px;
+    border-radius: 4px;
+}
+.small {
+    color: #5f6368;
+    font-size: 0.9rem;
+}
+</style>
+</head>
+<body>
+<h1>Market Regime Representation Learning</h1>
+<p class="subtitle">
+Reviewer-facing real-data research report
+</p>
+
+<div class="summary-box">
+<strong>Executive conclusion:</strong>
+The current evidence does not support statistically reliable aggregate
+or regime-dependent alpha. The strongest contribution is the research
+process: explicit real-data execution, walk-forward regime fitting,
+cross-refit label alignment, autocorrelation-aware inference,
+sparse-sample safeguards, and multiple-testing control.
+</div>
+
+<h2>1. Research question</h2>
+<p>
+Can simple cross-sectional momentum, reversal, and
+liquidity-adjusted signals exhibit economically meaningful and
+statistically defensible performance conditional on market regimes?
+</p>
+
+<h2>2. Experiment configuration</h2>
+<table class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Item</th>
+      <th>Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Data mode</td>
+      <td>real</td>
+    </tr>
+    <tr>
+      <td>Assets</td>
+      <td>24</td>
+    </tr>
+    <tr>
+      <td>Validated days</td>
+      <td>2134</td>
+    </tr>
+    <tr>
+      <td>Sectors</td>
+      <td>8</td>
+    </tr>
+    <tr>
+      <td>Walk-forward regimes</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td>Minimum training days</td>
+      <td>252</td>
+    </tr>
+    <tr>
+      <td>Refit frequency</td>
+      <td>20</td>
+    </tr>
+    <tr>
+      <td>Assigned regime days</td>
+      <td>1823</td>
+    </tr>
+    <tr>
+      <td>Raw data rows</td>
+      <td>51240</td>
+    </tr>
+    <tr>
+      <td>Duplicate date-asset rows</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>Missing OHLCV values</td>
+      <td>0</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3. Leakage and reproducibility controls</h2>
+<ul>
+<li>Regime estimators are fit only on dates preceding assignment dates.</li>
+<li>The default workflow uses walk-forward rather than full-sample regimes.</li>
+<li>Raw KMeans labels are preserved separately from aligned labels.</li>
+<li>No silent synthetic fallback is used in real-data mode.</li>
+<li>The raw downloaded price panel is excluded from Git.</li>
+<li>Committed reports are generated from a fixed 24-asset universe.</li>
+</ul>
+
+<h2>4. Regime-label alignment</h2>
+<p>
+The real-data workflow fit <strong>92</strong> regime models.
+Raw KMeans labels required remapping in
+<strong>86</strong> models, and alignment changed the
+numeric label of <strong>1315</strong> assigned dates.
+</p>
+<p>
+The median sequential centroid-match distance was
+<strong>0.0122</strong>, while the
+maximum was <strong>4.0870</strong>.
+The largest discontinuity occurred around the 2020 market shock.
+</p>
+
+<h3>Aligned regime profiles</h3>
+<table class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>regime</th>
+      <th>n_days</th>
+      <th>market_return</th>
+      <th>breadth</th>
+      <th>realized_volatility_20d</th>
+      <th>trend_60d</th>
+      <th>cross_sectional_dispersion</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0</td>
+      <td>915</td>
+      <td>0.0031</td>
+      <td>0.5999</td>
+      <td>0.0081</td>
+      <td>0.0661</td>
+      <td>0.0108</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>365</td>
+      <td>-0.0079</td>
+      <td>0.2872</td>
+      <td>0.0106</td>
+      <td>0.0312</td>
+      <td>0.0141</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>499</td>
+      <td>0.0041</td>
+      <td>0.5727</td>
+      <td>0.0109</td>
+      <td>0.0457</td>
+      <td>0.0205</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>44</td>
+      <td>-0.0115</td>
+      <td>0.3589</td>
+      <td>0.0261</td>
+      <td>-0.0662</td>
+      <td>0.0335</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>5. Aggregate signal inference</h2>
+<p>
+HAC inference accounts for overlap in the 10-day forward-return target.
+The aggregate family contained
+<strong>5</strong> hypotheses.
+</p>
+<table class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>signal</th>
+      <th>mean_rank_ic</th>
+      <th>hac_t_stat</th>
+      <th>raw_p_value</th>
+      <th>bh_fdr_adjusted_p_value</th>
+      <th>holm_adjusted_p_value</th>
+      <th>bh_fdr_reject</th>
+      <th>holm_reject</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>momentum_60d_z</td>
+      <td>0.0123</td>
+      <td>0.7272</td>
+      <td>0.4671</td>
+      <td>0.9862</td>
+      <td>1.0000</td>
+      <td>False</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <td>reversal_5d_z</td>
+      <td>0.0090</td>
+      <td>0.6998</td>
+      <td>0.4841</td>
+      <td>0.9862</td>
+      <td>1.0000</td>
+      <td>False</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <td>liquidity_adjusted_momentum_z</td>
+      <td>0.0065</td>
+      <td>0.4609</td>
+      <td>0.6449</td>
+      <td>0.9862</td>
+      <td>1.0000</td>
+      <td>False</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <td>momentum_20d_vol_adj_z</td>
+      <td>-0.0029</td>
+      <td>-0.2098</td>
+      <td>0.8338</td>
+      <td>0.9862</td>
+      <td>1.0000</td>
+      <td>False</td>
+      <td>False</td>
+    </tr>
+    <tr>
+      <td>momentum_20d_z</td>
+      <td>-0.0003</td>
+      <td>-0.0173</td>
+      <td>0.9862</td>
+      <td>0.9862</td>
+      <td>1.0000</td>
+      <td>False</td>
+      <td>False</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>6. Regime-conditional inference</h2>
+<p>
+Formal conditional inference required at least 60 valid IC days.
+The tested conditional family contained
+<strong>15</strong> eligible hypotheses.
+</p>
+<table class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>signal</th>
+      <th>regime</th>
+      <th>mean_rank_ic</th>
+      <th>hac_t_stat</th>
+      <th>raw_p_value</th>
+      <th>bh_fdr_adjusted_p_value</th>
+      <th>holm_adjusted_p_value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>reversal_5d_z</td>
+      <td>0</td>
+      <td>-0.0177</td>
+      <td>-1.1514</td>
+      <td>0.2496</td>
+      <td>0.9859</td>
+      <td>1.0000</td>
+    </tr>
+    <tr>
+      <td>momentum_60d_z</td>
+      <td>0</td>
+      <td>0.0221</td>
+      <td>1.0999</td>
+      <td>0.2714</td>
+      <td>0.9859</td>
+      <td>1.0000</td>
+    </tr>
+    <tr>
+      <td>reversal_5d_z</td>
+      <td>2</td>
+      <td>0.0187</td>
+      <td>0.8680</td>
+      <td>0.3854</td>
+      <td>0.9859</td>
+      <td>1.0000</td>
+    </tr>
+    <tr>
+      <td>momentum_60d_z</td>
+      <td>1</td>
+      <td>0.0199</td>
+      <td>0.7753</td>
+      <td>0.4382</td>
+      <td>0.9859</td>
+      <td>1.0000</td>
+    </tr>
+    <tr>
+      <td>liquidity_adjusted_momentum_z</td>
+      <td>0</td>
+      <td>0.0106</td>
+      <td>0.6178</td>
+      <td>0.5367</td>
+      <td>0.9859</td>
+      <td>1.0000</td>
+    </tr>
+    <tr>
+      <td>reversal_5d_z</td>
+      <td>1</td>
+      <td>0.0124</td>
+      <td>0.5951</td>
+      <td>0.5518</td>
+      <td>0.9859</td>
+      <td>1.0000</td>
+    </tr>
+    <tr>
+      <td>liquidity_adjusted_momentum_z</td>
+      <td>2</td>
+      <td>-0.0110</td>
+      <td>-0.4948</td>
+      <td>0.6207</td>
+      <td>0.9859</td>
+      <td>1.0000</td>
+    </tr>
+    <tr>
+      <td>momentum_20d_z</td>
+      <td>2</td>
+      <td>-0.0120</td>
+      <td>-0.4821</td>
+      <td>0.6297</td>
+      <td>0.9859</td>
+      <td>1.0000</td>
+    </tr>
+    <tr>
+      <td>momentum_20d_vol_adj_z</td>
+      <td>2</td>
+      <td>-0.0076</td>
+      <td>-0.3248</td>
+      <td>0.7453</td>
+      <td>0.9859</td>
+      <td>1.0000</td>
+    </tr>
+    <tr>
+      <td>liquidity_adjusted_momentum_z</td>
+      <td>1</td>
+      <td>0.0064</td>
+      <td>0.2877</td>
+      <td>0.7736</td>
+      <td>0.9859</td>
+      <td>1.0000</td>
+    </tr>
+    <tr>
+      <td>momentum_20d_z</td>
+      <td>0</td>
+      <td>0.0037</td>
+      <td>0.2096</td>
+      <td>0.8340</td>
+      <td>0.9859</td>
+      <td>1.0000</td>
+    </tr>
+    <tr>
+      <td>momentum_20d_vol_adj_z</td>
+      <td>1</td>
+      <td>0.0040</td>
+      <td>0.1857</td>
+      <td>0.8527</td>
+      <td>0.9859</td>
+      <td>1.0000</td>
+    </tr>
+    <tr>
+      <td>momentum_20d_z</td>
+      <td>1</td>
+      <td>0.0023</td>
+      <td>0.1060</td>
+      <td>0.9156</td>
+      <td>0.9859</td>
+      <td>1.0000</td>
+    </tr>
+    <tr>
+      <td>momentum_60d_z</td>
+      <td>2</td>
+      <td>-0.0013</td>
+      <td>-0.0492</td>
+      <td>0.9608</td>
+      <td>0.9859</td>
+      <td>1.0000</td>
+    </tr>
+    <tr>
+      <td>momentum_20d_vol_adj_z</td>
+      <td>0</td>
+      <td>0.0003</td>
+      <td>0.0177</td>
+      <td>0.9859</td>
+      <td>0.9859</td>
+      <td>1.0000</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Sparse results excluded from formal testing</h3>
+<table class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>signal</th>
+      <th>regime</th>
+      <th>mean_rank_ic</th>
+      <th>n_ic_days</th>
+      <th>minimum_days</th>
+      <th>inference_status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>liquidity_adjusted_momentum_z</td>
+      <td>3</td>
+      <td>0.0248</td>
+      <td>44</td>
+      <td>60</td>
+      <td>insufficient_sample</td>
+    </tr>
+    <tr>
+      <td>momentum_20d_vol_adj_z</td>
+      <td>3</td>
+      <td>0.0166</td>
+      <td>44</td>
+      <td>60</td>
+      <td>insufficient_sample</td>
+    </tr>
+    <tr>
+      <td>momentum_20d_z</td>
+      <td>3</td>
+      <td>0.0288</td>
+      <td>44</td>
+      <td>60</td>
+      <td>insufficient_sample</td>
+    </tr>
+    <tr>
+      <td>momentum_60d_z</td>
+      <td>3</td>
+      <td>0.0341</td>
+      <td>44</td>
+      <td>60</td>
+      <td>insufficient_sample</td>
+    </tr>
+    <tr>
+      <td>reversal_5d_z</td>
+      <td>3</td>
+      <td>0.0965</td>
+      <td>44</td>
+      <td>60</td>
+      <td>insufficient_sample</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>7. Multiple-testing conclusion</h2>
+<ul>
+<li>
+Aggregate Benjamini-Hochberg rejections:
+<strong>0</strong>
+</li>
+<li>
+Aggregate Holm rejections:
+<strong>0</strong>
+</li>
+<li>
+Conditional Benjamini-Hochberg rejections:
+<strong>0</strong>
+</li>
+<li>
+Conditional Holm rejections:
+<strong>0</strong>
+</li>
+</ul>
+
+<div class="conclusion">
+<strong>Final interpretation:</strong>
+No tested signal demonstrates statistically supported aggregate alpha
+or regime-dependent alpha. Descriptive patterns, particularly in the
+rare highest-stress regime, remain exploratory and should not be
+presented as tradable evidence.
+</div>
+
+<h2>8. Main limitations</h2>
+<ul>
+<li>The universe contains 24 large US equities across eight sectors.</li>
+<li>The analysis uses one fixed regime specification.</li>
+<li>Intermediate aligned regimes remain partially ambiguous.</li>
+<li>The highest-stress regime has a small sample.</li>
+<li>HAC p-values use a large-sample normal approximation.</li>
+<li>Transaction costs, turnover, and portfolio implementation are not evaluated.</li>
+</ul>
+
+<h2>9. Reproducibility artifacts</h2>
+<p>
+The report is generated from committed CSV outputs under
+<code>outputs/real/</code>. Detailed stage logs are stored under
+<code>docs/research_log/</code>.
+</p>
+
+<p class="small">
+This report intentionally distinguishes methodological validity from
+evidence of profitable alpha.
+</p>
+</body>
+</html>
