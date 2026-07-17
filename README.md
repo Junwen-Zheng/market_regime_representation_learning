@@ -119,3 +119,23 @@ The real-data analysis tested:
 Five sparse regime-3 rows were excluded from formal testing under the 60-day minimum-sample safeguard.
 
 Neither family produced any Benjamini-Hochberg or Holm rejection at the 0.05 level. The results therefore provide no statistically supported aggregate or regime-dependent alpha evidence.
+
+## Reviewer-facing research report
+
+The consolidated real-data report is available at:
+
+[`docs/reports/market_regime_research_report.html`](docs/reports/market_regime_research_report.html)
+
+It summarizes:
+
+- real-data coverage and quality checks
+- walk-forward leakage controls
+- regime-label alignment across refits
+- aggregate and regime-conditional HAC inference
+- sparse-regime safeguards
+- Benjamini-Hochberg and Holm multiple-testing control
+- limitations and the final negative-alpha conclusion
+
+Regenerate it deterministically with:
+
+    python scripts/build_research_report.py
