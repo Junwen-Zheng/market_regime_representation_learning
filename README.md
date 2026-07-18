@@ -139,3 +139,13 @@ It summarizes:
 Regenerate it deterministically with:
 
     python scripts/build_research_report.py
+
+## Reproducibility and continuous integration
+
+Clean-clone setup, synthetic and real-data commands, dependency details, and report-verification instructions are documented in:
+
+[`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md)
+
+GitHub Actions verifies Python 3.9 and 3.11, runs the complete test suite, regenerates the reviewer-facing HTML report, and checks that the committed report is deterministic.
+
+`requirements-lock.txt` pins the direct dependency versions used by CI. It is not a complete transitive dependency lock.
