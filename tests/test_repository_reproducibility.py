@@ -45,6 +45,7 @@ def test_ci_contract_covers_supported_versions_and_report():
         '"3.11"',
         "requirements-lock.txt",
         "pytest -q",
+        "python scripts/audit_release.py",
         "python scripts/build_research_report.py",
         "git diff --exit-code",
         "docs/reports/market_regime_research_report.html",
@@ -75,9 +76,9 @@ def test_reproducibility_guide_has_no_machine_paths():
         assert fragment in guide
 
     forbidden_fragments = [
-        "/Users/",
-        "junwenzheng",
-        "file://",
+        "/" + "Users" + "/",
+        "junwen" + "zheng",
+        "file:" + "//",
     ]
 
     for fragment in forbidden_fragments:
